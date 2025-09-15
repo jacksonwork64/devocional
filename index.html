@@ -3,11 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Devocional Photo Booth (GSR) – 1 arquivo</title>
+<title>Devocional Photo Booth (GSR)</title>
 <style>
   :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0b0b0b;color:#eee}
   .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0}
+  .hint{font-size:12px;opacity:.75}
   .row{display:grid;grid-template-columns:1.7fr 1fr;gap:16px}
   @media (max-width: 980px){ .row{grid-template-columns:1fr} }
   .card{background:#111;border:1px solid #222;border-radius:16px;overflow:hidden}
@@ -17,10 +21,8 @@
   .btn.sec{background:#1f1f1f;color:#ddd;border:1px solid #2a2a2a}
   .btn:disabled{opacity:.6;cursor:wait}
   .controls{display:flex;flex-wrap:wrap;gap:8px}
-  .hint{font-size:12px;opacity:.7}
   .input{background:#0e0e0e;border:1px solid #2a2a2a;border-radius:10px;color:#eee;padding:8px 10px;width:100%}
-  video,canvas,img{display:block}
-  .stage{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:16/9}
+  .stage{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:9/16}
   .stage video,.stage .overlay{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .stage .count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);font-size:96px;font-weight:900}
   .stage .grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);pointer-events:none}
@@ -36,17 +38,26 @@
   .modal .box .body{padding:14px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media (max-width:800px){.row2{grid-template-columns:1fr}}
-  .small{font-size:12px;opacity:.8}
+  .small{font-size:12px;opacity:.85}
   .danger{color:#ff7575}
+  /* estado kiosk: o JS controla cursor dinamicamente; esta classe é só marcador */
+  body.kiosk { }
 </style>
-
-<!-- Firebase compat será carregado dinâmico quando necessário -->
 </head>
 <body>
 <div class="wrap">
-  <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <h1 style="font-size:18px;margin:0">📸 Devocional Photo Booth (GSR)</h1>
-    <div class="hint">Dica: abra em HTTPS (Vercel/Netlify/GitHub Pages) para a câmera funcionar.</div>
+  <header>
+    <h1>📸 Devocional Photo Booth (GSR)</h1>
+    <div class="hint">Abra em HTTPS (Vercel) e permita a câmera.</div>
+    <div class="controls" style="margin-left:auto">
+      <label class="small" style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="autoFS" /> Auto tela cheia
+      </label>
+      <label class="small" style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="kiosk" /> Modo kiosk (ocultar cursor)
+      </label>
+      <button id="btnFS" class="btn sec" type="button">Tela cheia</button>
+    </div>
   </header>
 
   <div class="row">
@@ -84,11 +95,11 @@
           </label>
 
           <div style="display:flex;gap:10px">
-            <label class="small" style="flex:1">Resolução (largura)
-              <input id="w" type="number" class="input" value="1280" min="640" step="160" />
+            <label class="small" style="flex:1">Largura
+              <input id="w" type="number" class="input" value="1080" min="640" step="160" />
             </label>
             <label class="small" style="flex:1">Altura
-              <input id="h" type="number" class="input" value="720" min="360" step="90" />
+              <input id="h" type="number" class="input" value="1920" min="360" step="90" />
             </label>
           </div>
 
@@ -139,30 +150,24 @@
             <div id="shareNote" class="small hint" style="margin-top:8px"></div>
           </div>
         </div>
-
-        <details style="margin-top:14px">
-          <summary>Configurar Firebase (upload sem login)</summary>
-          <div class="small" style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <label>apiKey <input id="fApiKey" class="input" /></label>
-            <label>authDomain <input id="fAuth" class="input" /></label>
-            <label>projectId <input id="fPid" class="input" /></label>
-            <label>storageBucket <input id="fBucket" class="input" /></label>
-            <label>messagingSenderId <input id="fMsg" class="input" /></label>
-            <label>appId <input id="fApp" class="input" /></label>
-          </div>
-          <div class="hint small" style="margin-top:6px">
-            Regras mínimas de Storage (pasta <code>devocional/**</code>): permitir <b>read</b> público e <b>write</b> para imagens até 10 MB.
-          </div>
-        </details>
-
       </div>
     </div>
   </div>
 
 </div>
 
-<!-- Scripts -->
+<!-- ========= JS ========= -->
 <script>
+/* ---------- Firebase CONFIG (auto) ---------- */
+const FB_CFG = {
+  apiKey: "AIzaSyCnMPezYybsjLnx2VBmSeWHenAJEItOzNw",
+  authDomain: "devocional-gsr.firebaseapp.com",
+  projectId: "devocional-gsr",
+  storageBucket: "devocional-gsr.appspot.com",
+  messagingSenderId: "975283886792",
+  appId: "1:975283886792:web:de797e599b17ecb01fa3fd",
+};
+
 const els = {
   video: document.getElementById('video'),
   cams: document.getElementById('cams'),
@@ -187,12 +192,9 @@ const els = {
   btnWA: document.getElementById('btnWA'),
   btnClose: document.getElementById('btnClose'),
   shareNote: document.getElementById('shareNote'),
-  fApiKey: document.getElementById('fApiKey'),
-  fAuth: document.getElementById('fAuth'),
-  fPid: document.getElementById('fPid'),
-  fBucket: document.getElementById('fBucket'),
-  fMsg: document.getElementById('fMsg'),
-  fApp: document.getElementById('fApp'),
+  autoFS: document.getElementById('autoFS'),
+  kiosk: document.getElementById('kiosk'),
+  btnFS: document.getElementById('btnFS'),
 };
 
 let state = {
@@ -200,33 +202,78 @@ let state = {
   devices: [],
   deviceId: '',
   facing: 'user',
-  resW: 1280,
-  resH: 720,
+  resW: 1080,
+  resH: 1920,
   countdownStart: 3,
   firebaseReady: false,
   lastCapture: null,
 };
 
-const defaultFb = {
-  apiKey: "AIzaSyCnMPezYybsjLnx2VBmSeWHenAJEItOzNw",
-  authDomain: "devocional-gsr.firebaseapp.com",
-  projectId: "devocional-gsr",
-  storageBucket: "devocional-gsr.appspot.com",
-  messagingSenderId: "975283886792",
-  appId: "1:975283886792:web:de797e599b17ecb01fa3fd",
-};
-Object.assign(els,{}); // keep lints quiet
-// Prefill form
-els.fApiKey.value = defaultFb.apiKey;
-els.fAuth.value = defaultFb.authDomain;
-els.fPid.value = defaultFb.projectId;
-els.fBucket.value = defaultFb.storageBucket;
-els.fMsg.value = defaultFb.messagingSenderId;
-els.fApp.value = defaultFb.appId;
-
 function showError(msg){ els.err.style.display='block'; els.err.textContent = msg; }
 function clearError(){ els.err.style.display='none'; els.err.textContent=''; }
 
+/* ---------- Fullscreen helpers ---------- */
+async function maybeFullscreen(){
+  if (!els.autoFS.checked) return;
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+    }
+  } catch(e){ /* alguns navegadores exigem gesto do usuário */ }
+}
+els.btnFS.addEventListener('click', async ()=>{
+  try{
+    if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else await document.exitFullscreen();
+  }catch(_e){}
+});
+
+/* ---------- Kiosk (oculta cursor após inatividade) ---------- */
+let kioskTimerId = null;
+let kioskHandler = null;
+function enableKiosk(){
+  document.body.classList.add('kiosk');
+  const reset = ()=>{
+    document.body.style.cursor = 'default';
+    clearTimeout(kioskTimerId);
+    kioskTimerId = setTimeout(()=>{ document.body.style.cursor = 'none'; }, 1200);
+  };
+  kioskHandler = reset;
+  window.addEventListener('mousemove', reset);
+  reset();
+}
+function disableKiosk(){
+  document.body.classList.remove('kiosk');
+  if (kioskHandler) window.removeEventListener('mousemove', kioskHandler);
+  kioskHandler = null;
+  clearTimeout(kioskTimerId);
+  kioskTimerId = null;
+  document.body.style.cursor = '';
+}
+els.kiosk.addEventListener('change', e=>{
+  if (e.target.checked) enableKiosk(); else disableKiosk();
+});
+
+/* ---------- Firebase init (compat) ---------- */
+async function ensureFirebase(){
+  if(state.firebaseReady) return true;
+  const addScript = (src)=> new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+  try{
+    if(!window.firebase){
+      await addScript('https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js');
+      await addScript('https://www.gstatic.com/firebasejs/10.12.4/firebase-storage-compat.js');
+    }
+    window.firebase.initializeApp(FB_CFG);
+    state.firebaseReady = true;
+    return true;
+  }catch(e){
+    console.error('Firebase init error', e);
+    showError('Não foi possível inicializar o Firebase. Confira o storageBucket e as Regras no Console.');
+    return false;
+  }
+}
+
+/* ---------- Câmera ---------- */
 async function enumerate(){
   try{
     const list = await navigator.mediaDevices.enumerateDevices();
@@ -251,22 +298,34 @@ async function start(){
     state.stream = s;
     els.video.srcObject = s;
     await els.video.play();
+    // tentar fullscreen se marcado
+    maybeFullscreen();
   }catch(e){
     console.error(e);
-    showError('Falha ao acessar a câmera. Abra via HTTPS (Vercel/Netlify) ou localhost.');
+    showError('Falha ao acessar a câmera. Abra via HTTPS (Vercel/Netlify) ou localhost e permita a câmera.');
   }
 }
 
 async function init(){
   await enumerate();
   await start();
+  // tenta carregar moldura padrão se estiver na mesma pasta
+  try{
+    const test = await fetch('moldura_seduc_transparente_1080x1920.png', {cache:'no-store'});
+    if(test.ok){
+      const blob = await test.blob();
+      const url = URL.createObjectURL(blob);
+      els.overlayImg.src = url;
+      els.overlayImg.style.display = 'block';
+    }
+  }catch(_e){}
 }
 init();
 
-// UI handlers
+/* ---------- UI ---------- */
 els.cams.addEventListener('change', e=>{ state.deviceId = e.target.value; start(); });
-els.w.addEventListener('change', e=>{ state.resW = +e.target.value||1280; start(); });
-els.h.addEventListener('change', e=>{ state.resH = +e.target.value||720; start(); });
+els.w.addEventListener('change', e=>{ state.resW = +e.target.value||1080; start(); });
+els.h.addEventListener('change', e=>{ state.resH = +e.target.value||1920; start(); });
 
 els.btnSwitch.addEventListener('click', ()=>{
   if(state.devices.length<2){ state.facing = state.facing==='user'?'environment':'user'; state.deviceId=''; start(); }
@@ -284,6 +343,13 @@ els.btnGrid.addEventListener('click', ()=>{
   els.btnGrid.textContent = on ? 'Mostrar grade' : 'Ocultar grade';
 });
 
+document.addEventListener('keydown', (e)=>{
+  const k = e.key.toLowerCase();
+  if(k==='c') { maybeFullscreen(); capture(); }
+  if(k==='t') els.btnSwitch.click();
+  if(k==='g') els.btnGrid.click();
+});
+
 els.overlayFile.addEventListener('change', (e)=>{
   const f = e.target.files && e.target.files[0];
   if(!f) return;
@@ -295,15 +361,9 @@ els.overlayFile.addEventListener('change', (e)=>{
   reader.readAsDataURL(f);
 });
 
-document.addEventListener('keydown', (e)=>{
-  const k = e.key.toLowerCase();
-  if(k==='c') capture();
-  if(k==='t') els.btnSwitch.click();
-  if(k==='g') els.btnGrid.click();
-});
+els.btnShot.addEventListener('click', ()=>{ maybeFullscreen(); capture(); });
 
-els.btnShot.addEventListener('click', capture);
-
+/* ---------- Captura ---------- */
 async function capture(){
   // contagem
   const n = state.countdownStart;
@@ -315,33 +375,33 @@ async function capture(){
     }
     els.count.style.display='none';
   }
-  // render
   const v = els.video;
   const w = v.videoWidth || state.resW;
   const h = v.videoHeight || state.resH;
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
-  if(els.mirror.checked){
-    ctx.translate(w,0); ctx.scale(-1,1);
-  }
+
+  // vídeo
+  if(els.mirror.checked){ ctx.translate(w,0); ctx.scale(-1,1); }
   ctx.drawImage(v,0,0,w,h);
+
+  // moldura - cobre a tela mantendo proporção
   if(els.overlayImg.src){
-    ctx.setTransform(1,0,0,1,0,0); // reset
-    // cobre a área inteira mantendo proporção
+    ctx.setTransform(1,0,0,1,0,0);
     const o = els.overlayImg;
     const scale = Math.max(w/o.naturalWidth, h/o.naturalHeight);
     const dw = o.naturalWidth*scale, dh = o.naturalHeight*scale;
     const dx = (w-dw)/2, dy = (h-dh)/2;
     ctx.drawImage(o,dx,dy,dw,dh);
   }
+
   const mime = 'image/png';
   const dataUrl = c.toDataURL(mime, 0.95);
   const ts = new Date().toISOString().replace(/[:.]/g,'-');
   const name = `devocional_${ts}.png`;
-
   const cap = { id: ts, url: dataUrl, name, mime };
-  state.lastCapture = cap;
+
   addToGallery(cap);
   openShare(cap);
 }
@@ -353,7 +413,7 @@ function addToGallery(cap){
   card.innerHTML = `
     <img src="${cap.url}" alt="${cap.name}">
     <div class="bar">
-      <span class="small" style="opacity:.8">${cap.name}</span>
+      <span class="small" style="opacity:.8;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cap.name}</span>
       <div style="display:flex;gap:6px">
         <a class="btn sec" href="${cap.url}" download="${cap.name}">Baixar</a>
         <button class="btn sec">QR</button>
@@ -364,40 +424,7 @@ function addToGallery(cap){
   els.gallery.prepend(card);
 }
 
-// -------- Compartilhamento / Firebase ----------
-function getFirebaseConfigFromForm(){
-  return {
-    apiKey: els.fApiKey.value.trim(),
-    authDomain: els.fAuth.value.trim(),
-    projectId: els.fPid.value.trim(),
-    storageBucket: els.fBucket.value.trim(),
-    messagingSenderId: els.fMsg.value.trim(),
-    appId: els.fApp.value.trim(),
-  };
-}
-
-async function ensureFirebase(){
-  if(state.firebaseReady) return true;
-  const cfg = getFirebaseConfigFromForm();
-  if(!cfg.apiKey || !cfg.projectId || !cfg.storageBucket || !cfg.appId){
-    return false;
-  }
-  // carrega sdk compat
-  const addScript = (src)=> new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
-  try{
-    if(!window.firebase){
-      await addScript('https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js');
-      await addScript('https://www.gstatic.com/firebasejs/10.12.4/firebase-storage-compat.js');
-    }
-    window.firebase.initializeApp(cfg);
-    state.firebaseReady = true;
-    return true;
-  }catch(e){
-    console.error('Firebase init error', e);
-    return false;
-  }
-}
-
+/* ---------- Upload + QR ---------- */
 async function uploadToFirebase(cap){
   const ok = await ensureFirebase();
   if(!ok) return null;
@@ -409,32 +436,21 @@ async function uploadToFirebase(cap){
   const url = await ref.getDownloadURL();
   return url;
 }
-
 function qrImage(url){
-  // usa API pública para gerar QR (precisa de internet)
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(url)}`;
-  const img = new Image();
-  img.alt = 'QR Code';
-  img.src = src;
-  img.style.maxWidth='100%';
+  const img = new Image(); img.alt = 'QR Code'; img.src = src; img.style.maxWidth='100%';
   return img;
 }
-
 async function openShare(cap){
   els.sharePreview.src = cap.url;
   els.dlLocal.href = cap.url;
   els.dlLocal.download = cap.name;
-  els.shareNote.textContent = "Gerando link público… (se o Firebase não estiver configurado, o QR não funcionará em outro dispositivo)";
-
   els.qrBox.innerHTML = '<div class="hint small">Gerando QR…</div>';
   els.shareModal.style.display = 'flex';
+  els.shareNote.textContent = 'Gerando link público via Firebase…';
 
   let publicUrl = null;
-  try{
-    publicUrl = await uploadToFirebase(cap);
-  }catch(e){
-    console.error(e);
-  }
+  try { publicUrl = await uploadToFirebase(cap); } catch (e) { console.error(e); }
 
   if(publicUrl){
     els.qrBox.innerHTML = '';
@@ -442,16 +458,15 @@ async function openShare(cap){
     els.btnCopy.onclick = ()=> navigator.clipboard?.writeText(publicUrl);
     els.btnWA.href = `https://wa.me/?text=${encodeURIComponent('Baixe sua foto do Devocional: '+publicUrl)}`;
     els.btnWA.textContent = 'WhatsApp';
-    els.shareNote.textContent = "Pronto! Aponte a câmera do celular para o QR ou use o link.";
+    els.shareNote.textContent = 'Pronto! Aponte a câmera do celular para o QR ou use o link.';
   }else{
-    els.qrBox.innerHTML = '<div class="small hint">Sem Firebase configurado: não há link público para gerar QR válido em outro dispositivo.</div>';
+    els.qrBox.innerHTML = '<div class="small hint">Sem link público: verifique o Firebase (config e Regras) e tente novamente.</div>';
     els.btnCopy.onclick = ()=>{};
     els.btnWA.href = '#';
     els.btnWA.textContent = 'WhatsApp (indisponível)';
-    els.shareNote.innerHTML = 'Preencha as credenciais do Firebase (aba “Configurar Firebase”) e publique as <b>regras de Storage</b>. Reabra esta janela e capture novamente.';
+    els.shareNote.innerHTML = 'Confirme <b>storageBucket=devocional-gsr.appspot.com</b>, inicie o Storage e publique as Regras.';
   }
 }
-
 els.btnClose.addEventListener('click', ()=> els.shareModal.style.display='none');
 </script>
 </body>
