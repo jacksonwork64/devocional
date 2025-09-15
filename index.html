@@ -39,4 +39,344 @@
   .modal .box h3{margin:0;padding:12px 14px;border-bottom:1px solid #222}
   .modal .box .body{padding:14px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  @media (max-width:800px){.row2{grid-template-
+  @media (max-width:800px){.row2{grid-template-columns:1fr}}
+  .small{font-size:12px;opacity:.85}
+  .danger{color:#ff7575}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📸 Devocional Photo Booth (GSR)</h1>
+    <div class="hint">Abra em HTTPS (Vercel) e permita a câmera.</div>
+    <div class="controls" style="margin-left:auto">
+      <label class="small" style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="autoFS" /> Auto tela cheia
+      </label>
+      <label class="small" style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="kiosk" /> Modo kiosk (ocultar cursor)
+      </label>
+      <button id="btnFS" class="btn sec" type="button">Tela cheia</button>
+    </div>
+  </header>
+
+  <div class="row">
+    <!-- Pré-visualização -->
+    <section class="card">
+      <h2>Pré-visualização</h2>
+      <div class="body">
+        <div class="stage" id="stage">
+          <video id="video" playsinline muted></video>
+          <img id="overlay" class="overlay" alt="" style="display:none" />
+          <div id="grid" class="grid" style="display:none">
+            <div></div><div></div><div></div>
+            <div></div><div></div><div></div>
+            <div></div><div></div><div></div>
+          </div>
+          <div id="count" class="count" style="display:none">3</div>
+        </div>
+
+        <div class="controls" style="margin-top:10px">
+          <button class="btn sec" id="btnSwitch">Trocar câmera</button>
+          <button class="btn sec" id="btnGrid">Mostrar grade</button>
+          <button class="btn" id="btnShot">Capturar</button>
+        </div>
+        <div id="err" class="small danger" style="margin-top:8px;display:none"></div>
+      </div>
+    </section>
+
+    <!-- Painel -->
+    <aside class="card">
+      <h2>Configurações</h2>
+      <div class="body">
+        <div style="display:grid;grid-template-columns:1fr;gap:10px">
+          <label class="small">Dispositivo de vídeo
+            <select id="cams" class="input"></select>
+          </label>
+
+          <div style="display:flex;gap:10px">
+            <label class="small" style="flex:1">Largura
+              <input id="w" type="number" class="input" value="1080" min="640" step="160" />
+            </label>
+            <label class="small" style="flex:1">Altura
+              <input id="h" type="number" class="input" value="1920" min="360" step="90" />
+            </label>
+          </div>
+
+          <label class="small">Moldura (PNG com transparência)
+            <input id="overlayFile" type="file" class="input" accept="image/png,image/webp,image/jpeg" />
+          </label>
+
+          <div class="hint">Atalhos: <b>C</b> (capturar), <b>T</b> (trocar câmera), <b>G</b> (grade)</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Galeria -->
+  <section class="card" style="margin-top:16px">
+    <h2>Galeria</h2>
+    <div class="body">
+      <div id="gallery" class="gallery"></div>
+      <div id="empty" class="hint">Sem capturas ainda.</div>
+    </div>
+  </section>
+
+  <!-- Compartilhar (modal) -->
+  <div id="shareModal" class="modal" style="display:none">
+    <div class="box">
+      <h3>Compartilhar foto</h3>
+      <div class="body">
+        <div class="row2">
+          <div>
+            <img id="sharePreview" alt="preview" style="width:100%;border-radius:12px" />
+            <div class="small hint" style="margin-top:8px">Você também pode baixar localmente abaixo.</div>
+          </div>
+          <div>
+            <div id="qrBox" style="display:flex;align-items:center;justify-content:center;min-height:320px;border:1px dashed #2a2a2a;border-radius:12px;margin-bottom:10px">
+              <div class="hint small">Gerando QR...</div>
+            </div>
+            <div class="controls">
+              <a id="dlLocal" class="btn sec" download>Baixar (local)</a>
+              <button id="btnCopy" class="btn sec" type="button">Copiar link</button>
+              <a id="btnWA" class="btn sec" target="_blank" rel="noreferrer">WhatsApp</a>
+              <button id="btnClose" class="btn" type="button">Fechar</button>
+            </div>
+            <div id="shareNote" class="small hint" style="margin-top:8px"></div>
+
+            <!-- (opcional) editar Cloudinary no navegador -->
+            <details style="margin-top:10px">
+              <summary>Cloudinary – editar se precisar</summary>
+              <div class="small" style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <label>cloudName <input id="cldName" class="input" /></label>
+                <label>uploadPreset <input id="cldPreset" class="input" /></label>
+              </div>
+              <div class="hint small" style="margin-top:6px">
+                O <b>uploadPreset</b> deve estar como <b>Unsigned</b> no painel da Cloudinary (sem API secret no front-end).
+              </div>
+            </details>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========= JS ========= -->
+<script>
+/* ---------- Cloudinary (unsigned) pré-config ---------- */
+const CLD_DEFAULT = {
+  cloudName: "djah6fzzm",
+  uploadPreset: "cer3qpvy" // defina como UNSIGNED no painel
+};
+
+const els = {
+  video: document.getElementById('video'),
+  cams: document.getElementById('cams'),
+  overlayImg: document.getElementById('overlay'),
+  overlayFile: document.getElementById('overlayFile'),
+  btnSwitch: document.getElementById('btnSwitch'),
+  btnGrid: document.getElementById('btnGrid'),
+  grid: document.getElementById('grid'),
+  btnShot: document.getElementById('btnShot'),
+  count: document.getElementById('count'),
+  w: document.getElementById('w'),
+  h: document.getElementById('h'),
+  err: document.getElementById('err'),
+  gallery: document.getElementById('gallery'),
+  empty: document.getElementById('empty'),
+  shareModal: document.getElementById('shareModal'),
+  sharePreview: document.getElementById('sharePreview'),
+  qrBox: document.getElementById('qrBox'),
+  dlLocal: document.getElementById('dlLocal'),
+  btnCopy: document.getElementById('btnCopy'),
+  btnWA: document.getElementById('btnWA'),
+  btnClose: document.getElementById('btnClose'),
+  shareNote: document.getElementById('shareNote'),
+  autoFS: document.getElementById('autoFS'),
+  kiosk: document.getElementById('kiosk'),
+  btnFS: document.getElementById('btnFS'),
+  cldName: document.getElementById('cldName'),
+  cldPreset: document.getElementById('cldPreset'),
+};
+
+let state = {
+  stream: null,
+  devices: [],
+  deviceId: '',
+  facing: 'user',
+  resW: 1080,
+  resH: 1920,
+  countdownStart: 3,
+};
+
+function showError(msg){ els.err.style.display='block'; els.err.textContent = msg; }
+function clearError(){ els.err.style.display='none'; els.err.textContent=''; }
+
+/* ---------- Fullscreen helpers ---------- */
+async function maybeFullscreen(){
+  if (!els.autoFS.checked) return;
+  try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); } catch(e){}
+}
+els.btnFS.addEventListener('click', async ()=>{
+  try{
+    if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else await document.exitFullscreen();
+  }catch(_e){}
+});
+
+/* ---------- Kiosk (oculta cursor) ---------- */
+let kioskTimerId=null, kioskHandler=null;
+function enableKiosk(){
+  const reset=()=>{ document.body.style.cursor='default'; clearTimeout(kioskTimerId);
+    kioskTimerId=setTimeout(()=>{ document.body.style.cursor='none'; },1200); };
+  kioskHandler=reset; window.addEventListener('mousemove',reset); reset();
+}
+function disableKiosk(){ if(kioskHandler) window.removeEventListener('mousemove',kioskHandler);
+  kioskHandler=null; clearTimeout(kioskTimerId); document.body.style.cursor=''; }
+els.kiosk.addEventListener('change', e=>{ e.target.checked?enableKiosk():disableKiosk(); });
+
+/* ---------- Câmera ---------- */
+async function enumerate(){
+  try{
+    const list = await navigator.mediaDevices.enumerateDevices();
+    const cams = list.filter(d=>d.kind==='videoinput');
+    state.devices=cams;
+    els.cams.innerHTML = cams.map((d,i)=>`<option value="${d.deviceId}">${d.label||('Câmera '+(i+1))}</option>`).join('');
+    if(!state.deviceId && cams[0]) state.deviceId=cams[0].deviceId;
+    els.cams.value=state.deviceId;
+  }catch(e){ showError('Não foi possível listar câmeras. Use HTTPS e permita a câmera.'); }
+}
+async function start(){
+  clearError();
+  try{
+    if(state.stream) state.stream.getTracks().forEach(t=>t.stop());
+    const constraints = state.deviceId
+      ? { video:{ deviceId:{exact:state.deviceId}, width:{ideal:state.resW}, height:{ideal:state.resH} } }
+      : { video:{ facingMode: state.facing, width:{ideal:state.resW}, height:{ideal:state.resH} } };
+    const s = await navigator.mediaDevices.getUserMedia(constraints);
+    state.stream=s; els.video.srcObject=s; await els.video.play(); maybeFullscreen();
+  }catch(e){ showError('Falha ao acessar a câmera (precisa HTTPS).'); }
+}
+async function init(){
+  await enumerate(); await start();
+  // carregar moldura padrão se estiver na mesma pasta
+  try{
+    const r=await fetch('moldura_seduc_transparente_1080x1920.png',{cache:'no-store'});
+    if(r.ok){ const url=URL.createObjectURL(await r.blob()); els.overlayImg.src=url; els.overlayImg.style.display='block'; }
+  }catch(_e){}
+  // preencher inputs do Cloudinary
+  if(els.cldName && els.cldPreset){
+    els.cldName.value = CLD_DEFAULT.cloudName;
+    els.cldPreset.value = CLD_DEFAULT.uploadPreset;
+  }
+}
+init();
+
+/* ---------- UI ---------- */
+els.cams.addEventListener('change', e=>{ state.deviceId=e.target.value; start(); });
+els.w.addEventListener('change', e=>{ state.resW=+e.target.value||1080; start(); });
+els.h.addEventListener('change', e=>{ state.resH=+e.target.value||1920; start(); });
+els.btnSwitch.addEventListener('click', ()=>{
+  if(state.devices.length<2){ state.facing=state.facing==='user'?'environment':'user'; state.deviceId=''; start(); }
+  else{ const idx=state.devices.findIndex(d=>d.deviceId===state.deviceId); const next=state.devices[(idx+1)%state.devices.length]; state.deviceId=(next&&next.deviceId)||state.deviceId; start(); }
+});
+els.btnGrid.addEventListener('click', ()=>{ const on=els.grid.style.display!=='none'; els.grid.style.display=on?'none':'grid'; els.btnGrid.textContent=on?'Mostrar grade':'Ocultar grade'; });
+document.addEventListener('keydown', e=>{ const k=e.key.toLowerCase(); if(k==='c'){ maybeFullscreen(); capture(); } if(k==='t') els.btnSwitch.click(); if(k==='g') els.btnGrid.click(); });
+els.overlayFile.addEventListener('change', e=>{ const f=e.target.files?.[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ els.overlayImg.src=rd.result; els.overlayImg.style.display='block'; }; rd.readAsDataURL(f); });
+els.btnShot.addEventListener('click', ()=>{ maybeFullscreen(); capture(); });
+
+/* ---------- Captura (sempre espelhada) ---------- */
+async function capture(){
+  // contagem
+  for(let i=state.countdownStart;i>0;i--){ els.count.textContent=i; els.count.style.display='flex'; await new Promise(r=>setTimeout(r,1000)); }
+  els.count.style.display='none';
+
+  const v=els.video, w=v.videoWidth||state.resW, h=v.videoHeight||state.resH;
+  const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
+
+  // vídeo espelhado
+  ctx.translate(w,0); ctx.scale(-1,1); ctx.drawImage(v,0,0,w,h);
+
+  // moldura (não espelhar)
+  ctx.setTransform(1,0,0,1,0,0);
+  if(els.overlayImg.src){ const o=els.overlayImg; const scale=Math.max(w/o.naturalWidth,h/o.naturalHeight); const dw=o.naturalWidth*scale, dh=o.naturalHeight*scale; const dx=(w-dw)/2, dy=(h-dh)/2; ctx.drawImage(o,dx,dy,dw,dh); }
+
+  const dataUrl=c.toDataURL('image/png',0.95);
+  const ts=new Date().toISOString().replace(/[:.]/g,'-');
+  const cap={ name:`devocional_${ts}.png`, url:dataUrl, mime:'image/png' };
+
+  addToGallery(cap); openShare(cap);
+}
+
+function addToGallery(cap){
+  els.empty.style.display='none';
+  const card=document.createElement('div'); card.className='thumb';
+  card.innerHTML=`<img src="${cap.url}" alt="${cap.name}">
+  <div class="bar">
+    <span class="small" style="opacity:.8;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cap.name}</span>
+    <div style="display:flex;gap:6px">
+      <a class="btn sec" href="${cap.url}" download="${cap.name}">Baixar</a>
+      <button class="btn sec">QR</button>
+    </div>
+  </div>`;
+  card.querySelector('button').addEventListener('click',()=>openShare(cap));
+  els.gallery.prepend(card);
+}
+
+/* ---------- Upload + QR (Cloudinary) ---------- */
+function getCloudinary(){
+  const name = (els.cldName?.value || '').trim() || CLD_DEFAULT.cloudName;
+  const preset = (els.cldPreset?.value || '').trim() || CLD_DEFAULT.uploadPreset;
+  return { name, preset };
+}
+function hasCloudinary(){
+  const {name,preset} = getCloudinary();
+  return !!(name && preset);
+}
+async function uploadToCloudinary(cap){
+  if(!hasCloudinary()) return null;
+  const {name,preset} = getCloudinary();
+  const url=`https://api.cloudinary.com/v1_1/${name}/image/upload`;
+  const fd=new FormData();
+  fd.append('file', cap.url);              // aceita dataURL
+  fd.append('upload_preset', preset);      // UNSIGNED
+  fd.append('folder','devocional');        // opcional
+  const resp=await fetch(url,{method:'POST',body:fd});
+  if(!resp.ok) throw new Error('Cloudinary upload falhou');
+  const json=await resp.json();
+  return json.secure_url || json.url || null;
+}
+
+function qrImage(url){
+  const src=`https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(url)}`;
+  const img=new Image(); img.alt='QR Code'; img.src=src; img.style.maxWidth='100%'; return img;
+}
+
+async function openShare(cap){
+  els.sharePreview.src=cap.url;
+  els.dlLocal.href=cap.url; els.dlLocal.download=cap.name;
+  els.qrBox.innerHTML='<div class="hint small">Gerando QR…</div>';
+  els.shareModal.style.display='flex';
+  els.shareNote.textContent='Gerando link público…';
+
+  let publicUrl=null;
+  try{ publicUrl=await uploadToCloudinary(cap); }catch(e){ console.error(e); }
+
+  if(publicUrl){
+    els.qrBox.innerHTML=''; els.qrBox.appendChild(qrImage(publicUrl));
+    els.btnCopy.onclick=()=>navigator.clipboard?.writeText(publicUrl);
+    els.btnWA.href=`https://wa.me/?text=${encodeURIComponent('Baixe sua foto do Devocional: '+publicUrl)}`;
+    els.btnWA.textContent='WhatsApp';
+    els.shareNote.textContent='Pronto! Aponte a câmera do celular para o QR ou use o link.';
+  }else{
+    els.qrBox.innerHTML='<div class="small hint">Sem link público: preencha o <b>cloudName</b> e o <b>uploadPreset (Unsigned)</b> da Cloudinary.</div>';
+    els.btnCopy.onclick=()=>{}; els.btnWA.href='#'; els.btnWA.textContent='WhatsApp (indisponível)';
+  }
+}
+els.btnClose.addEventListener('click',()=> els.shareModal.style.display='none');
+</script>
+</body>
+</html>
