@@ -166,6 +166,13 @@
 
 <!-- ========= JS ========= -->
 <script>
+/* ---------- Exportação (tamanho/qualidade fixos) ---------- */
+const EXPORT = {
+  format: "image/jpeg",   // "image/jpeg" (menor arquivo) ou "image/png"
+  quality: 0.9,           // só usado no JPEG (0.6–0.95 recomendado)
+  size: { w: 1080, h: 1920 } // saída sempre 1080x1920
+};
+
 /* ---------- Cloudinary (unsigned) pré-config ---------- */
 const CLD_DEFAULT = {
   cloudName: "djah6fzzm",
@@ -288,27 +295,58 @@ document.addEventListener('keydown', e=>{ const k=e.key.toLowerCase(); if(k==='c
 els.overlayFile.addEventListener('change', e=>{ const f=e.target.files?.[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ els.overlayImg.src=rd.result; els.overlayImg.style.display='block'; }; rd.readAsDataURL(f); });
 els.btnShot.addEventListener('click', ()=>{ maybeFullscreen(); capture(); });
 
-/* ---------- Captura (sempre espelhada) ---------- */
+/* ---------- Captura (sempre espelhada) + Export 1080x1920 ---------- */
 async function capture(){
-  // contagem
-  for(let i=state.countdownStart;i>0;i--){ els.count.textContent=i; els.count.style.display='flex'; await new Promise(r=>setTimeout(r,1000)); }
+  // contagem regressiva
+  for(let i=state.countdownStart;i>0;i--){
+    els.count.textContent=i; els.count.style.display='flex';
+    await new Promise(r=>setTimeout(r,1000));
+  }
   els.count.style.display='none';
 
-  const v=els.video, w=v.videoWidth||state.resW, h=v.videoHeight||state.resH;
-  const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
+  const v = els.video;
+  const TW = EXPORT.size.w, TH = EXPORT.size.h;
 
-  // vídeo espelhado
-  ctx.translate(w,0); ctx.scale(-1,1); ctx.drawImage(v,0,0,w,h);
+  // Dimensão real do vídeo
+  const vw = v.videoWidth || state.resW;
+  const vh = v.videoHeight || state.resH;
 
-  // moldura (não espelhar)
+  // Canvas de saída fixo (1080x1920)
+  const c = document.createElement('canvas');
+  c.width = TW; c.height = TH;
+  const ctx = c.getContext('2d');
+
+  // "cover" para preencher sem bordas
+  const scale = Math.max(TW / vw, TH / vh);
+  const dw = vw * scale, dh = vh * scale;
+  const dx = (TW - dw) / 2, dy = (TH - dh) / 2;
+
+  // vídeo espelhado (selfie)
+  ctx.translate(TW, 0); ctx.scale(-1, 1);
+  ctx.drawImage(v, dx, dy, dw, dh);
+
+  // moldura por cima (não espelhar)
   ctx.setTransform(1,0,0,1,0,0);
-  if(els.overlayImg.src){ const o=els.overlayImg; const scale=Math.max(w/o.naturalWidth,h/o.naturalHeight); const dw=o.naturalWidth*scale, dh=o.naturalHeight*scale; const dx=(w-dw)/2, dy=(h-dh)/2; ctx.drawImage(o,dx,dy,dw,dh); }
+  if (els.overlayImg.src){
+    const o = els.overlayImg;
+    const of = Math.max(TW/o.naturalWidth, TH/o.naturalHeight);
+    const ow = o.naturalWidth*of, oh = o.naturalHeight*of;
+    const ox = (TW-ow)/2, oy = (TH-oh)/2;
+    ctx.drawImage(o, ox, oy, ow, oh);
+  }
 
-  const dataUrl=c.toDataURL('image/png',0.95);
-  const ts=new Date().toISOString().replace(/[:.]/g,'-');
-  const cap={ name:`devocional_${ts}.png`, url:dataUrl, mime:'image/png' };
+  // Exporta no formato + qualidade definidos
+  const mime = EXPORT.format;            // "image/jpeg" ou "image/png"
+  const quality = EXPORT.quality || 0.9; // só é usado no JPEG
+  const dataUrl = c.toDataURL(mime, quality);
 
-  addToGallery(cap); openShare(cap);
+  const ts = new Date().toISOString().replace(/[:.]/g,'-');
+  const ext = mime === "image/png" ? "png" : "jpg";
+  const name = `devocional_${ts}.${ext}`;
+  const cap = { name, url: dataUrl, mime };
+
+  addToGallery(cap);
+  openShare(cap);
 }
 
 function addToGallery(cap){
@@ -341,7 +379,7 @@ async function uploadToCloudinary(cap){
   const {name,preset} = getCloudinary();
   const url=`https://api.cloudinary.com/v1_1/${name}/image/upload`;
   const fd=new FormData();
-  fd.append('file', cap.url);              // aceita dataURL
+  fd.append('file', cap.url);              // aceita dataURL (base64)
   fd.append('upload_preset', preset);      // UNSIGNED
   fd.append('folder','devocional');        // opcional
   const resp=await fetch(url,{method:'POST',body:fd});
