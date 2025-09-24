@@ -59,7 +59,6 @@
   @media (max-width:800px){.row2{grid-template-columns:1fr}}
   .small{font-size:12px;opacity:.85}
   .danger{color:#ff7575}
-
   /* Escala confortável em telas grandes (4K totem) */
   @media (min-height: 1800px){
     header h1{font-size:22px}
@@ -162,25 +161,9 @@
               <div class="hint small">Gerando QR...</div>
             </div>
             <div class="controls">
-              <a id="dlLocal" class="btn sec" download>Baixar (local)</a>
-              <button id="btnCopy" class="btn sec" type="button">Copiar link</button>
-              <a id="btnWA" class="btn sec" target="_blank" rel="noreferrer">WhatsApp</a>
               <button id="btnClose" class="btn" type="button">Fechar</button>
             </div>
             <div id="shareNote" class="small hint" style="margin-top:8px"></div>
-
-            <!-- (opcional) editar Cloudinary no navegador -->
-            <details style="margin-top:10px">
-              <summary>Cloudinary – editar se precisar</summary>
-              <div class="small" style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <label>cloudName <input id="cldName" class="input" /></label>
-                <label>uploadPreset <input id="cldPreset" class="input" /></label>
-              </div>
-              <div class="hint small" style="margin-top:6px">
-                O <b>uploadPreset</b> deve estar como <b>Unsigned</b> no painel da Cloudinary (sem API secret no front-end).
-              </div>
-            </details>
-
           </div>
         </div>
       </div>
@@ -429,7 +412,6 @@ function addToGallery(cap){
   <div class="bar">
     <span class="small" style="opacity:.8;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cap.name}</span>
     <div style="display:flex;gap:6px">
-      <a class="btn sec" href="${cap.url}" download="${cap.name}">Baixar</a>
       <button class="btn sec">QR</button>
     </div>
   </div>`;
@@ -468,7 +450,6 @@ function qrImage(url){
 
 async function openShare(cap){
   els.sharePreview.src=cap.url;
-  els.dlLocal.href=cap.url; els.dlLocal.download=cap.name;
   els.qrBox.innerHTML='<div class="hint small">Gerando QR…</div>';
   els.shareModal.style.display='flex';
   els.shareNote.textContent = hasCloudinary() ? 'Gerando link público…' : 'Sem preset Cloudinary: o QR não sairá até preencher as credenciais.';
@@ -479,12 +460,9 @@ async function openShare(cap){
   if(publicUrl){
     els.qrBox.innerHTML=''; els.qrBox.appendChild(qrImage(publicUrl));
     els.btnCopy.onclick=()=>navigator.clipboard?.writeText(publicUrl);
-    els.btnWA.href=`https://wa.me/?text=${encodeURIComponent('Baixe sua foto do Devocional: '+publicUrl)}`;
-    els.btnWA.textContent='WhatsApp';
     els.shareNote.textContent='Pronto! Aponte a câmera do celular para o QR ou use o link.';
   }else{
     els.qrBox.innerHTML='<div class="small hint">Sem link público: preencha <b>cloudName</b> e <b>uploadPreset (Unsigned)</b> da Cloudinary.</div>';
-    els.btnCopy.onclick=()=>{}; els.btnWA.href='#'; els.btnWA.textContent='WhatsApp (indisponível)';
   }
 }
 els.btnClose.addEventListener('click',()=> els.shareModal.style.display='none');
